@@ -46,6 +46,24 @@ chmod +x ~/Downloads/isdt-nxhost-monitor/start.command
 Das Dashboard ist ausschließlich über den lokalen Rechner erreichbar. Der
 Server bindet fest an `127.0.0.1`, nicht an das WLAN/LAN.
 
+## Automatisch bei USB-Verbindung öffnen (macOS)
+
+Die angeschlossene N-Series meldet sich auf diesem Mac als `ISDTNX` mit der
+USB-ID `28E9:028A`. Der mitgelieferte lokale Wächter prüft ausschließlich diese
+Kennung in der macOS-USB-Liste. Er sendet dabei keine Befehle an das Ladegerät.
+
+Zum Aktivieren `install-autostart.command` doppelklicken. Danach läuft beim
+Anmelden ein persönlicher macOS-LaunchAgent:
+
+- Beim Anstecken von `ISDTNX` startet er den Monitor, falls dieser noch nicht
+  läuft, und öffnet einmalig `http://127.0.0.1:8765/`.
+- Beim Abziehen beendet er nur einen Monitor, den er selbst gestartet hat. Ein
+  manuell gestarteter Monitor bleibt unangetastet.
+- Andere USB-Geräte lösen nichts aus. Alles bleibt lokal auf diesem Mac.
+
+Mit `uninstall-autostart.command` lässt sich die Automatik vollständig wieder
+entfernen. Die Messdatenbank wird dabei nicht gelöscht.
+
 ## Ohne Hardware ansehen
 
 Der Demo-Modus spielt nur die gespeicherten Gesprächsframes ab:
@@ -118,8 +136,9 @@ Offsets sind nullbasiert und werden Little Endian gelesen:
 
 | Offset | Breite | Vorläufige Deutung | Status |
 |---:|---:|---|---|
+| 9 | 1 | Akku eingesetzt | Kandidat: 1 bei belegten, 4 bei leeren Slots |
 | 10 | 1 | Temperatur in °C | Display-Abgleich 25/25/26/26 °C |
-| 12 | 1 | Prozent oder Status | 99 passt bei zwei Slots; sonst 1/5, vorläufig |
+| 12 | 1 | Status-/Prozent-Code | 99 bei zwei Slots mit Displaywert 99 %; 1 bei zwei grünen, vollständig geladenen Slots; nicht als reiner Prozentwert interpretieren |
 | 13 | 2 | Spannung in mV | Display-Abgleich an vier Slots |
 | 15 | 2 | Momentanstrom in mA | 408/434 mA passen zu aktiven 0,4-A-Slots; sonst 0 |
 | 17 | 2 | Widerstand in mΩ | Display-Abgleich 166/177/228/176 mΩ |
@@ -131,6 +150,12 @@ Offsets sind nullbasiert und werden Little Endian gelesen:
 Ein Live-Frame von Slot 7 enthielt eine gestuffte Nutzdatenfolge `AA AA 05`.
 Nach protokollgerechtem Entstören zu `AA 05` ergeben sich exakt `1450 mV`,
 `434 mA`, `228 mΩ` und `26 °C`. Der Parser berücksichtigt dieses Byte-Stuffing.
+
+Beim Umstecken zweier Akkus meldeten die nun leeren Slots 5 und 8 weiterhin
+eine Rest-/Leerlaufspannung von 773 beziehungsweise 793 mV. Gleichzeitig waren
+Strom, Widerstand, Kapazität und Status null, und Byte 9 wechselte auf 4; bei
+allen belegten Slots stand es auf 1. Die Oberfläche verwendet deshalb Byte 9
+als experimentellen Belegungsindikator und nicht mehr „Spannung größer null“.
 
 Die Displaybezeichnung „Eneloop“ ist im `metrics`-Frame nicht als Text enthalten.
 Bei der gemeinsamen Umstellung von Slot 8 von Eneloop/Laden auf NiMH/Analyse

@@ -48,6 +48,14 @@ FRAMES = {
         "0224aa2120df070b09011a1763e105ce00d8003e010300010000001b00000000"
         "f08e0600003e43a013082f1c8200000000000000000000000000000000000000"
     ),
+    "live_removed_slot5": (
+        "0224aa2120df040007041a180005030000000000000000000000000000000000"
+        "639006000062aafa13082f1c8200000000000000000000000000000000000000"
+    ),
+    "live_removed_slot8": (
+        "0224aa2120df070007041a180019030000000000000000000000000000000000"
+        "638a06000073aafa13082f1c8200000000000000000000000000000000000000"
+    ),
 }
 
 
@@ -110,6 +118,15 @@ class ParserTests(unittest.TestCase):
         result = parse_reading_hex(FRAMES["channel8_empty"])
         self.assertEqual(result.frame_channel, 8)
         self.assertFalse(result.has_nonzero_measurement)
+
+    def test_removed_cells_ignore_residual_open_slot_voltage(self):
+        slot5 = parse_reading_hex(FRAMES["live_removed_slot5"])
+        slot8 = parse_reading_hex(FRAMES["live_removed_slot8"])
+        self.assertEqual((slot5.voltage_mv, slot8.voltage_mv), (773, 793))
+        self.assertEqual((slot5.code_9_candidate, slot8.code_9_candidate), (4, 4))
+        self.assertFalse(slot5.battery_present_candidate)
+        self.assertFalse(slot8.battery_present_candidate)
+        self.assertTrue(parse_reading_hex(FRAMES["live_channel4"]).battery_present_candidate)
 
     def test_extracts_reading_not_writing_and_uses_last_reading(self):
         output = "Writing deadbeef\nReading aa\nReading " + FRAMES["channel4"] + "\n[]"

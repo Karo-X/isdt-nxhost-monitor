@@ -81,7 +81,7 @@ function renderCard(channel, sample, manualLabel) {
   addMetric(grid, "Widerstand", `${number(measurement?.resistance_mohm_unverified)} mΩ`);
   addMetric(grid, "Temperatur", `${number(measurement?.temperature_c_candidate)} °C`);
   addMetric(grid, "Kapazität", `${number(measurement?.capacity_mah_candidate)} mAh`);
-  addMetric(grid, "Status / %", number(measurement?.state_or_soc_candidate));
+  addMetric(grid, "Status-/Prozent-Code", number(measurement?.state_or_soc_candidate));
   addMetric(grid, "Zeit-Kandidat", duration(measurement?.elapsed_seconds_candidate));
   card.append(grid);
   if (sample?.error) card.append(node("p", "card-error", sample.error));
@@ -112,7 +112,7 @@ function renderRecent(samples) {
         `Reading: ${sample.raw_frame || "nicht vorhanden"}`,
         `Profil-/Moduscodes (Bytes 7/8/9/11): ${number(sample.code_7_candidate)} / ${number(sample.code_8_candidate)} / ${number(sample.code_9_candidate)} / ${number(sample.code_11_candidate)}`,
         `Temperatur (Byte 10): ${number(sample.temperature_c_candidate)} °C`,
-        `Status/% (Byte 12): ${number(sample.state_or_soc_candidate)}`,
+        `Status-/Prozent-Code (Byte 12): ${number(sample.state_or_soc_candidate)}`,
         `Spannung (Offset 13): ${number(sample.voltage_mv)} mV`,
         `Momentanstrom (Offset 15): ${number(sample.current_ma_unverified)} mA`,
         `Widerstand (Offset 17): ${number(sample.resistance_mohm_unverified)} mΩ`,

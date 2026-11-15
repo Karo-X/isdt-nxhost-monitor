@@ -34,15 +34,14 @@ class ExperimentalMetrics:
     elapsed_seconds_candidate: int
 
     @property
+    def battery_present_candidate(self) -> bool:
+        """Observed slot-presence marker: 1 with a cell, 4 when empty."""
+        return self.code_9_candidate == 1
+
+    @property
     def has_nonzero_measurement(self) -> bool:
-        return any(
-            (
-                self.voltage_mv,
-                self.current_ma_unverified,
-                self.resistance_mohm_unverified,
-                self.capacity_mah_candidate,
-            )
-        )
+        # Compatibility name used by the current web API.
+        return self.battery_present_candidate
 
     def to_dict(self) -> dict[str, object]:
         result = asdict(self)
@@ -51,6 +50,7 @@ class ExperimentalMetrics:
         result["temperature_tenths_c_unverified"] = None
         result["unknown_b"] = self.capacity_mah_candidate
         result["unknown_c"] = self.elapsed_seconds_candidate
+        result["battery_present_candidate"] = self.battery_present_candidate
         result["has_nonzero_measurement"] = self.has_nonzero_measurement
         return result
 

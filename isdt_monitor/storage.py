@@ -141,15 +141,23 @@ class HistoryStore:
             except (TypeError, ValueError):
                 pass
         result["temperature_c_unverified"] = result.get("temperature_c_candidate")
-        result["has_nonzero_measurement"] = any(
-            result.get(key)
-            for key in (
-                "voltage_mv",
-                "current_ma_unverified",
-                "resistance_mohm_unverified",
-                "capacity_mah_candidate",
+        code_9 = result.get("code_9_candidate")
+        if code_9 is None:
+            present = any(
+                result.get(key)
+                for key in (
+                    "voltage_mv",
+                    "current_ma_unverified",
+                    "resistance_mohm_unverified",
+                    "capacity_mah_candidate",
+                )
             )
-        )
+        else:
+            # Live removal test: byte 9 changed from 1 to 4 while an empty bay
+            # still reported about 0.8 V. Voltage alone is not presence.
+            present = code_9 == 1
+        result["battery_present_candidate"] = present
+        result["has_nonzero_measurement"] = present
         return result
 
     def latest(self) -> list[dict[str, Any]]:
