@@ -31,6 +31,19 @@ def load_config(path: Path) -> dict:
     ):
         raise ValueError("'channels' muss eine eindeutige Liste von 1–32 Kanälen (0–255) sein.")
     config["channels"] = channels
+    labels = config.get("slot_labels", {})
+    if not isinstance(labels, dict):
+        raise ValueError("'slot_labels' muss ein Objekt mit Kanalnummern und Texten sein.")
+    normalized_labels = {}
+    for key, value in labels.items():
+        try:
+            channel = int(key)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Ungültige Kanalnummer in 'slot_labels'.") from exc
+        if channel not in channels or not isinstance(value, str) or not value.strip() or len(value) > 80:
+            raise ValueError("Slot-Bezeichnungen müssen zu konfigurierten Kanälen gehören und 1–80 Zeichen lang sein.")
+        normalized_labels[str(channel)] = value.strip()
+    config["slot_labels"] = normalized_labels
     config["poll_interval_seconds"] = max(
         1.0, float(config.get("poll_interval_seconds", 5.0))
     )
@@ -86,8 +99,8 @@ def main() -> int:
     print("ISDT NXHOST Battery Monitor")
     print(f"Lokale Oberfläche: {url}")
     print("Beenden: Ctrl+C")
-    print("Hinweis: Alle Zuordnungen sind experimentell; Strom/Widerstand/Temperatur")
-    print("sind nicht verifiziert. Es werden nur metrics-Abfragen ausgeführt.")
+    print("Hinweis: Reverse Engineering; mehrere Felder sind per Display abgeglichen,")
+    print("Status und weitere Rohwerte bleiben experimentell. Nur metrics-Abfragen.")
     if args.demo:
         print("DEMO-MODUS: gespeicherte Frames, kein Hardwarezugriff.")
     if not args.no_browser:

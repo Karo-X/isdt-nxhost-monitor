@@ -5,11 +5,16 @@ const recentNode = document.querySelector("#recent");
 const rawNode = document.querySelector("#raw-output");
 const channelSelect = document.querySelector("#history-channel");
 const fieldSelect = document.querySelector("#history-field");
+const hideInactiveToggle = document.querySelector("#hide-inactive");
+const slotCountNode = document.querySelector("#slot-count");
 const canvas = document.querySelector("#chart");
 const chartEmpty = document.querySelector("#chart-empty");
 let selectedChannel = null;
 let latestHistory = [];
 const fileMode = window.location.protocol === "file:";
+let hideInactive = false;
+try { hideInactive = localStorage.getItem("nxhost-hide-inactive") === "1"; } catch (_) {}
+hideInactiveToggle.checked = hideInactive;
 
 function node(tag, className, text) {
   const item = document.createElement(tag);
@@ -31,13 +36,22 @@ function localTime(iso) {
   return new Date(iso).toLocaleTimeString("de-DE", { hour12: false });
 }
 
+function duration(value) {
+  if (value === null || value === undefined) return "—";
+  const total = Math.max(0, Math.round(Number(value)));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 function addMetric(parent, label, value) {
   const metric = node("div", "metric");
   metric.append(node("small", "", label), node("b", "", value));
   parent.append(metric);
 }
 
-function renderCard(channel, sample) {
+function renderCard(channel, sample, manualLabel) {
   const card = node("article", "slot-card");
   if (channel === selectedChannel) card.classList.add("active");
   if (sample?.error) card.classList.add("error");
@@ -49,22 +63,26 @@ function renderCard(channel, sample) {
 
   const head = node("div", "slot-head");
   const title = node("div");
-  title.append(node("div", "slot-title", `Slot ${channel + 1}`), node("div", "slot-channel", `isdttool-Kanal ${channel}`));
+  title.append(
+    node("div", "slot-title", `Slot ${channel + 1}`),
+    node("div", "slot-channel", `${manualLabel ? `${manualLabel} · manuell · ` : ""}isdttool-Kanal ${channel}`),
+  );
   const hasData = Boolean(sample?.has_nonzero_measurement);
+  const measurement = hasData ? sample : null;
   head.append(title, node("span", `pill ${hasData ? "data" : ""}`, hasData ? "MESSWERTE" : "NULL / OFFEN"));
   card.append(head);
 
   const primary = node("div", "primary-reading");
-  primary.append(node("strong", "", number(sample?.voltage_mv)), node("span", "", "mV · exp."));
+  primary.append(node("strong", "", number(measurement?.voltage_mv)), node("span", "", "mV · exp."));
   card.append(primary);
 
   const grid = node("div", "metric-grid");
-  addMetric(grid, "Strom*", `${number(sample?.current_ma_unverified)} mA`);
-  addMetric(grid, "Widerst.*", `${number(sample?.resistance_mohm_unverified)} mΩ`);
-  addMetric(grid, "Temperatur*", `${number(sample?.temperature_c_unverified, 1)} °C`);
-  addMetric(grid, "Unbekannt A", number(sample?.unknown_a));
-  addMetric(grid, "Unbekannt B", number(sample?.unknown_b));
-  addMetric(grid, "Unbekannt C", number(sample?.unknown_c));
+  addMetric(grid, "Momentanstrom", `${number(measurement?.current_ma_unverified)} mA`);
+  addMetric(grid, "Widerstand", `${number(measurement?.resistance_mohm_unverified)} mΩ`);
+  addMetric(grid, "Temperatur", `${number(measurement?.temperature_c_candidate)} °C`);
+  addMetric(grid, "Kapazität", `${number(measurement?.capacity_mah_candidate)} mAh`);
+  addMetric(grid, "Status / %", number(measurement?.state_or_soc_candidate));
+  addMetric(grid, "Zeit-Kandidat", duration(measurement?.elapsed_seconds_candidate));
   card.append(grid);
   if (sample?.error) card.append(node("p", "card-error", sample.error));
   card.append(node("div", "card-time", sample ? `Letzte Abfrage ${localTime(sample.observed_at)}` : "Noch nicht abgefragt"));
@@ -81,8 +99,8 @@ function renderRecent(samples) {
       `${number(sample.voltage_mv)} mV`,
       `${number(sample.current_ma_unverified)} mA`,
       `${number(sample.resistance_mohm_unverified)} mΩ`,
-      `${number(sample.temperature_c_unverified, 1)} °C`,
-      `${number(sample.unknown_a)} / ${number(sample.unknown_b)} / ${number(sample.unknown_c)}`,
+      `${number(sample.temperature_c_candidate)} °C`,
+      `${number(sample.capacity_mah_candidate)} / ${number(sample.state_or_soc_candidate)} / ${duration(sample.elapsed_seconds_candidate)}`,
     ];
     for (const value of values) row.append(node("td", "", value));
     row.append(node("td", sample.error ? "bad" : "ok", sample.error ? "Fehler" : "OK"));
@@ -92,6 +110,16 @@ function renderRecent(samples) {
         `Slot ${sample.channel + 1} / Kanal ${sample.channel}`,
         sample.error ? `Fehler: ${sample.error}` : "Fehler: keiner",
         `Reading: ${sample.raw_frame || "nicht vorhanden"}`,
+        `Profil-/Moduscodes (Bytes 7/8/9/11): ${number(sample.code_7_candidate)} / ${number(sample.code_8_candidate)} / ${number(sample.code_9_candidate)} / ${number(sample.code_11_candidate)}`,
+        `Temperatur (Byte 10): ${number(sample.temperature_c_candidate)} °C`,
+        `Status/% (Byte 12): ${number(sample.state_or_soc_candidate)}`,
+        `Spannung (Offset 13): ${number(sample.voltage_mv)} mV`,
+        `Momentanstrom (Offset 15): ${number(sample.current_ma_unverified)} mA`,
+        `Widerstand (Offset 17): ${number(sample.resistance_mohm_unverified)} mΩ`,
+        `Rohwert Offset 19: ${number(sample.unknown_offset19_u16)}`,
+        `Unbekannt A (Offset 21): ${number(sample.unknown_a)}`,
+        `Kapazität (Offset 23): ${number(sample.capacity_mah_candidate)} mAh`,
+        `Zeit-Kandidat (Offset 27): ${number(sample.elapsed_seconds_candidate)} s`,
         "",
         "Vollständige isdttool-Ausgabe:",
         sample.raw_output || "(leer)",
@@ -186,7 +214,12 @@ async function load() {
     document.querySelector("#status").textContent = polling === null ? "Serielles Polling aktiv" : `Kanal ${polling} wird gelesen …`;
     document.querySelector("#cycle").textContent = `Zyklen: ${state.collector.cycles} · Intervall: ${number(state.config.poll_interval_seconds, 0)} s`;
     const latest = new Map(state.latest.map(item => [item.channel, item]));
-    slotsNode.replaceChildren(...state.config.channels.map(channel => renderCard(channel, latest.get(channel))));
+    const activeCount = state.config.channels.filter(channel => latest.get(channel)?.has_nonzero_measurement).length;
+    const visibleChannels = state.config.channels.filter(channel => !hideInactive || latest.get(channel)?.has_nonzero_measurement);
+    const cards = visibleChannels.map(channel => renderCard(channel, latest.get(channel), state.config.slot_labels?.[String(channel)]));
+    slotsNode.replaceChildren(...cards);
+    if (!cards.length) slotsNode.append(node("p", "muted", "Noch keine aktiven Slots erkannt."));
+    slotCountNode.textContent = `${activeCount} aktiv · ${state.config.channels.length} konfiguriert · Slot 1 = Kanal 0`;
     renderRecent(state.recent);
     await loadHistory();
   } catch (error) {
@@ -199,7 +232,7 @@ function showFileMode() {
   const channels = Array.from({ length: 8 }, (_, index) => index);
   selectedChannel = 0;
   setupChannels(channels);
-  slotsNode.replaceChildren(...channels.map(channel => renderCard(channel, null)));
+  slotsNode.replaceChildren(...channels.map(channel => renderCard(channel, null, null)));
   document.querySelector("#mode").textContent = "SERVER NICHT GESTARTET";
   document.querySelector("#status").textContent =
     "Diese HTML-Datei wurde direkt geöffnet. Bitte im Hauptordner isdt-nxhost-monitor die Datei start.command doppelklicken.";
@@ -219,6 +252,7 @@ function showFileMode() {
   ].join("\n");
   channelSelect.disabled = true;
   fieldSelect.disabled = true;
+  hideInactiveToggle.disabled = true;
   const download = document.querySelector("#csv-download");
   download.textContent = "CSV nach dem Start verfügbar";
   download.href = "#";
@@ -228,6 +262,11 @@ function showFileMode() {
 if (fileMode) {
   showFileMode();
 } else {
+  hideInactiveToggle.addEventListener("change", () => {
+    hideInactive = hideInactiveToggle.checked;
+    try { localStorage.setItem("nxhost-hide-inactive", hideInactive ? "1" : "0"); } catch (_) {}
+    load();
+  });
   channelSelect.addEventListener("change", () => { selectedChannel = Number(channelSelect.value); loadHistory(); });
   fieldSelect.addEventListener("change", drawChart);
   window.addEventListener("resize", drawChart);

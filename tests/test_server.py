@@ -30,7 +30,7 @@ class ServerTests(unittest.TestCase):
                 ) as response:
                     payload = json.load(response)
                 self.assertEqual(payload["config"]["channels"], list(range(8)))
-                self.assertIn("nicht verifiziert", payload["experimental_notice"])
+                self.assertIn("live mit dem Display abgeglichen", payload["experimental_notice"])
             finally:
                 server.shutdown()
                 server.server_close()

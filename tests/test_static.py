@@ -14,6 +14,8 @@ class StaticFallbackTests(unittest.TestCase):
         self.assertIn('src="app.js"', html)
         self.assertIn('window.location.protocol === "file:"', javascript)
         self.assertIn("start.command doppelklicken", javascript)
+        self.assertIn('id="hide-inactive"', html)
+        self.assertIn("nxhost-hide-inactive", javascript)
 
 
 if __name__ == "__main__":

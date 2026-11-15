@@ -14,9 +14,18 @@ COLUMNS = (
     "epoch",
     "channel",
     "frame_channel",
+    "code_7_candidate",
+    "code_8_candidate",
+    "code_9_candidate",
+    "temperature_c_candidate",
+    "code_11_candidate",
+    "state_or_soc_candidate",
     "voltage_mv",
     "current_ma_unverified",
     "resistance_mohm_unverified",
+    "unknown_offset19_u16",
+    "capacity_mah_candidate",
+    "elapsed_seconds_candidate",
     "temperature_tenths_c_unverified",
     "unknown_a",
     "unknown_b",
@@ -49,9 +58,18 @@ class HistoryStore:
                     epoch REAL NOT NULL,
                     channel INTEGER NOT NULL,
                     frame_channel INTEGER,
+                    code_7_candidate INTEGER,
+                    code_8_candidate INTEGER,
+                    code_9_candidate INTEGER,
+                    temperature_c_candidate INTEGER,
+                    code_11_candidate INTEGER,
+                    state_or_soc_candidate INTEGER,
                     voltage_mv INTEGER,
                     current_ma_unverified INTEGER,
                     resistance_mohm_unverified INTEGER,
+                    unknown_offset19_u16 INTEGER,
+                    capacity_mah_candidate INTEGER,
+                    elapsed_seconds_candidate INTEGER,
                     temperature_tenths_c_unverified INTEGER,
                     unknown_a INTEGER,
                     unknown_b INTEGER,
@@ -66,6 +84,20 @@ class HistoryStore:
                 "CREATE INDEX IF NOT EXISTS idx_samples_channel_id "
                 "ON samples(channel, id DESC)"
             )
+            existing = {row[1] for row in db.execute("PRAGMA table_info(samples)")}
+            for name in (
+                "temperature_c_candidate",
+                "state_or_soc_candidate",
+                "code_7_candidate",
+                "code_8_candidate",
+                "code_9_candidate",
+                "code_11_candidate",
+                "unknown_offset19_u16",
+                "capacity_mah_candidate",
+                "elapsed_seconds_candidate",
+            ):
+                if name not in existing:
+                    db.execute(f"ALTER TABLE samples ADD COLUMN {name} INTEGER")
 
     def add(self, sample: dict[str, Any]) -> None:
         placeholders = ",".join("?" for _ in COLUMNS)
@@ -88,18 +120,34 @@ class HistoryStore:
     @staticmethod
     def _row(row: sqlite3.Row) -> dict[str, Any]:
         result = dict(row)
-        tenths = result.get("temperature_tenths_c_unverified")
-        result["temperature_c_unverified"] = None if tenths is None else tenths / 10.0
+        # Backfill new interpretations when reading rows created by v0.1.
+        if result.get("unknown_offset19_u16") is None:
+            result["unknown_offset19_u16"] = result.get("temperature_tenths_c_unverified")
+        if result.get("capacity_mah_candidate") is None:
+            result["capacity_mah_candidate"] = result.get("unknown_b")
+        if result.get("elapsed_seconds_candidate") is None:
+            result["elapsed_seconds_candidate"] = result.get("unknown_c")
+        if result.get("temperature_c_candidate") is None and result.get("raw_frame"):
+            try:
+                from .parser import parse_reading_hex
+
+                parsed = parse_reading_hex(result["raw_frame"])
+                result["temperature_c_candidate"] = parsed.temperature_c_candidate
+                result["state_or_soc_candidate"] = parsed.state_or_soc_candidate
+                result["code_7_candidate"] = parsed.code_7_candidate
+                result["code_8_candidate"] = parsed.code_8_candidate
+                result["code_9_candidate"] = parsed.code_9_candidate
+                result["code_11_candidate"] = parsed.code_11_candidate
+            except (TypeError, ValueError):
+                pass
+        result["temperature_c_unverified"] = result.get("temperature_c_candidate")
         result["has_nonzero_measurement"] = any(
             result.get(key)
             for key in (
                 "voltage_mv",
                 "current_ma_unverified",
                 "resistance_mohm_unverified",
-                "temperature_tenths_c_unverified",
-                "unknown_a",
-                "unknown_b",
-                "unknown_c",
+                "capacity_mah_candidate",
             )
         )
         return result

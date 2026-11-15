@@ -5,10 +5,12 @@ fragt die konfigurierten Kanäle **nacheinander** ab, speichert den Verlauf in
 SQLite, zeigt Rohdaten und Fehler an und exportiert alle gespeicherten Messungen
 als CSV.
 
-> **Wichtiger Status:** Alle Feldzuordnungen und Einheiten sind experimentell.
-> Die Deutung von Strom, Widerstand und Temperatur ist ausdrücklich **nicht
-> verifiziert**. Dieses Projekt wurde mit gespeicherten Hex-Frames und
-> automatisierten Tests geprüft, aber nicht an echter ISDT-Hardware getestet.
+> **Wichtiger Status:** Das Protokoll bleibt experimentell und reverse
+> engineered. Spannung, Temperatur, Widerstand und Kapazität wurden am
+> 15. November 2026 mit einer rein lesenden Live-Abfrage gegen die gleichzeitig
+> angezeigten Slotwerte abgeglichen. Dies ist kein umfassender Hardwaretest.
+> Momentanstrom, Prozent/Status, Ladezeit und weitere Rohwerte bleiben
+> vorläufig.
 
 ## Schnellstart
 
@@ -25,6 +27,10 @@ Voraussetzung: Dein vorhandenes `~/isdt-env` mit installiertem `isdttool`.
 
 4. Der Browser öffnet `http://127.0.0.1:8765/`.
 5. Mit `Ctrl+C` im Terminal beenden.
+
+Mit **Inaktive Slots ausblenden** lassen sich Karten ohne dekodierte Messwerte
+verbergen. Die Einstellung bleibt lokal im Browser gespeichert; Verlauf und
+Rohdaten werden dadurch nicht gelöscht.
 
 Die Datei `isdt_monitor/web/index.html` bitte **nicht direkt öffnen**. Eine
 `file://`-Seite kann den Python-Server und damit weder USB-Abfragen noch Verlauf
@@ -59,8 +65,9 @@ cd ~/Downloads/isdt-nxhost-monitor
 ~/isdt-env/bin/python -m unittest discover -s tests -v
 ```
 
-Die Tests prüfen die Offsets gegen sechs bisherige Frames, die Extraktion der
-`Reading`-Zeile, Fehlerfälle, lokale Serverbindung und dass der Subprocess nur
+Die Tests prüfen die Offsets gegen historische und live abgeglichene Frames,
+einschließlich NXHOST-Byte-Stuffing, die Extraktion der `Reading`-Zeile,
+Fehlerfälle, lokale Serverbindung und dass der Subprocess nur
 diese feste, lesende Befehlsform benutzt:
 
 ```text
@@ -76,6 +83,12 @@ Es gibt keine Lade-, Schreib-, Raw-Command-, Bootloader- oder Firmwarebefehle.
 ```json
 {
   "channels": [0, 1, 2, 3, 4, 5, 6, 7],
+  "slot_labels": {
+    "4": "Eneloop",
+    "5": "Eneloop",
+    "6": "Eneloop",
+    "7": "NiMH · Analyse"
+  },
   "poll_interval_seconds": 5,
   "command_timeout_seconds": 10,
   "max_history_per_slot": 5000,
@@ -85,6 +98,8 @@ Es gibt keine Lade-, Schreib-, Raw-Command-, Bootloader- oder Firmwarebefehle.
 
 - Slot 1 entspricht Kanal 0, Slot 8 entspricht Kanal 7.
 - `channels` kann auf andere oder weniger Kanäle geändert werden.
+- `slot_labels` sind manuelle Bezeichnungen. `metrics` überträgt keinen Text
+  wie „Eneloop“; der Monitor behauptet daher keine automatische Erkennung.
 - Das Polling bleibt seriell: nie mehr als ein `isdttool`-Prozess gleichzeitig.
 - `poll_interval_seconds` ist der Zielabstand zwischen vollständigen Zyklen. Ist
   ein Zyklus langsamer, beginnt der nächste direkt danach; es gibt keine
@@ -103,18 +118,30 @@ Offsets sind nullbasiert und werden Little Endian gelesen:
 
 | Offset | Breite | Vorläufige Deutung | Status |
 |---:|---:|---|---|
-| 13 | 2 | Spannung in mV | experimentell |
-| 15 | 2 | Strom in mA | experimentell, nicht verifiziert |
-| 17 | 2 | Widerstand in mΩ | experimentell, nicht verifiziert |
-| 19 | 2 | Temperatur / 10 in °C | experimentell, nicht verifiziert |
+| 10 | 1 | Temperatur in °C | Display-Abgleich 25/25/26/26 °C |
+| 12 | 1 | Prozent oder Status | 99 passt bei zwei Slots; sonst 1/5, vorläufig |
+| 13 | 2 | Spannung in mV | Display-Abgleich an vier Slots |
+| 15 | 2 | Momentanstrom in mA | 408/434 mA passen zu aktiven 0,4-A-Slots; sonst 0 |
+| 17 | 2 | Widerstand in mΩ | Display-Abgleich 166/177/228/176 mΩ |
+| 19 | 2 | unbekannter Rohwert (`uint16`) | frühere Temperaturannahme widerlegt |
 | 21 | 2 | Unbekannt A (`uint16`) | unbekannt |
-| 23 | 4 | Unbekannt B (`uint32`) | unbekannt |
-| 27 | 4 | Unbekannt C (`uint32`) | unbekannt |
+| 23 | 4 | Kapazität in mAh | 84 und 82 exakt; aktive Slots stiegen erwartbar weiter |
+| 27 | 4 | verstrichene Zeit in Sekunden | plausibler Kandidat, nicht abschließend bestätigt |
 
-Beispiel Kanal 4: Aus dem Frame werden `1540`, `209`, `190`, `32,9`, `65`,
-`25` und `446`. Beispiel Kanal 5 (spätere Abfrage): `1430`, `222`, `252`,
-`32,6`, `70`, `28` und `462`. Diese Übereinstimmung bestätigt die angegebenen
-Byte-Offsets für die Beispiele, nicht deren physikalische Bedeutung.
+Ein Live-Frame von Slot 7 enthielt eine gestuffte Nutzdatenfolge `AA AA 05`.
+Nach protokollgerechtem Entstören zu `AA 05` ergeben sich exakt `1450 mV`,
+`434 mA`, `228 mΩ` und `26 °C`. Der Parser berücksichtigt dieses Byte-Stuffing.
+
+Die Displaybezeichnung „Eneloop“ ist im `metrics`-Frame nicht als Text enthalten.
+Bei der gemeinsamen Umstellung von Slot 8 von Eneloop/Laden auf NiMH/Analyse
+änderten sich die Rohcodes Byte 7/8 von `4/7` auf `11/9`; Byte 9/11 blieben
+`1/23`. Weil Akkutyp und Vorgang gleichzeitig geändert wurden, lässt sich noch
+nicht seriös zuordnen, welcher der beiden Codes für NiMH beziehungsweise Analyse
+steht. Der Monitor zeigt diese vier Werte deshalb nur als Profil-/Moduscodes in
+der Diagnose an. Die Namen in `slot_labels` sind ausdrücklich manuell.
+
+Beim Neustart der Analyse fielen die Offset-23/27-Werte auf `1 mAh` und `27 s`.
+Das stützt die Deutung als Kapazität und verstrichene Vorgangszeit zusätzlich.
 
 ## Daten und CSV
 

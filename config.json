@@ -1,5 +1,11 @@
 {
   "channels": [0, 1, 2, 3, 4, 5, 6, 7],
+  "slot_labels": {
+    "4": "Eneloop",
+    "5": "Eneloop",
+    "6": "Eneloop",
+    "7": "NiMH · Analyse"
+  },
   "poll_interval_seconds": 5,
   "command_timeout_seconds": 10,
   "max_history_per_slot": 5000,

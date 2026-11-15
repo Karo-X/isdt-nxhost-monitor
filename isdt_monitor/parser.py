@@ -19,17 +19,19 @@ class FrameError(ValueError):
 class ExperimentalMetrics:
     raw_frame: str
     frame_channel: int
+    code_7_candidate: int
+    code_8_candidate: int
+    code_9_candidate: int
+    temperature_c_candidate: int
+    code_11_candidate: int
+    state_or_soc_candidate: int
     voltage_mv: int
     current_ma_unverified: int
     resistance_mohm_unverified: int
-    temperature_tenths_c_unverified: int
+    unknown_offset19_u16: int
     unknown_a: int
-    unknown_b: int
-    unknown_c: int
-
-    @property
-    def temperature_c_unverified(self) -> float:
-        return self.temperature_tenths_c_unverified / 10.0
+    capacity_mah_candidate: int
+    elapsed_seconds_candidate: int
 
     @property
     def has_nonzero_measurement(self) -> bool:
@@ -38,18 +40,40 @@ class ExperimentalMetrics:
                 self.voltage_mv,
                 self.current_ma_unverified,
                 self.resistance_mohm_unverified,
-                self.temperature_tenths_c_unverified,
-                self.unknown_a,
-                self.unknown_b,
-                self.unknown_c,
+                self.capacity_mah_candidate,
             )
         )
 
     def to_dict(self) -> dict[str, object]:
         result = asdict(self)
-        result["temperature_c_unverified"] = self.temperature_c_unverified
+        # Compatibility aliases keep existing databases and CSV consumers usable.
+        result["temperature_c_unverified"] = self.temperature_c_candidate
+        result["temperature_tenths_c_unverified"] = None
+        result["unknown_b"] = self.capacity_mah_candidate
+        result["unknown_c"] = self.elapsed_seconds_candidate
         result["has_nonzero_measurement"] = self.has_nonzero_measurement
         return result
+
+
+def _destuff_frame(frame: bytes) -> bytes:
+    """Collapse duplicated 0xAA bytes after the three-byte frame header.
+
+    NXHOST byte-stuffs a payload byte of 0xAA as ``AA AA``. The header's sync
+    byte at index 2 is not stuffed. A live 1450 mV sample (0x05AA) exposed this
+    behavior by producing a 65-byte debug frame.
+    """
+    if len(frame) <= 3:
+        return frame
+    decoded = bytearray(frame[:3])
+    index = 3
+    while index < len(frame):
+        value = frame[index]
+        decoded.append(value)
+        if value == 0xAA and index + 1 < len(frame) and frame[index + 1] == 0xAA:
+            index += 2
+        else:
+            index += 1
+    return bytes(decoded)
 
 
 def extract_reading_hex(output: str) -> str:
@@ -70,9 +94,10 @@ def parse_reading_hex(raw_hex: str) -> ExperimentalMetrics:
     if not compact or len(compact) % 2:
         raise FrameError("Reading-Hex ist leer oder hat eine ungerade Länge.")
     try:
-        frame = bytes.fromhex(compact)
+        raw_frame = bytes.fromhex(compact)
     except ValueError as exc:
         raise FrameError("Reading-Hex enthält ungültige Zeichen.") from exc
+    frame = _destuff_frame(raw_frame)
     if len(frame) < MINIMUM_FRAME_BYTES:
         raise FrameError(
             f"Reading-Frame ist zu kurz: {len(frame)} statt mindestens "
@@ -86,15 +111,21 @@ def parse_reading_hex(raw_hex: str) -> ExperimentalMetrics:
         return int.from_bytes(frame[offset : offset + 4], "little", signed=False)
 
     return ExperimentalMetrics(
-        raw_frame=frame.hex(),
+        raw_frame=raw_frame.hex(),
         frame_channel=frame[6],
+        code_7_candidate=frame[7],
+        code_8_candidate=frame[8],
+        code_9_candidate=frame[9],
+        temperature_c_candidate=frame[10],
+        code_11_candidate=frame[11],
+        state_or_soc_candidate=frame[12],
         voltage_mv=u16(13),
         current_ma_unverified=u16(15),
         resistance_mohm_unverified=u16(17),
-        temperature_tenths_c_unverified=u16(19),
+        unknown_offset19_u16=u16(19),
         unknown_a=u16(21),
-        unknown_b=u32(23),
-        unknown_c=u32(27),
+        capacity_mah_candidate=u32(23),
+        elapsed_seconds_candidate=u32(27),
     )
 
 

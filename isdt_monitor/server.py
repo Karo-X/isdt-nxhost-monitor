@@ -35,14 +35,16 @@ def make_handler(store: HistoryStore, collector: Any, config: dict[str, Any]):
                         "collector": collector.status(),
                         "config": {
                             "channels": config["channels"],
+                            "slot_labels": config.get("slot_labels", {}),
                             "poll_interval_seconds": config["poll_interval_seconds"],
                             "demo": config.get("demo", False),
                         },
                         "latest": store.latest(),
                         "recent": store.recent(80),
                         "experimental_notice": (
-                            "Alle Feldzuordnungen sind experimentell. Strom, Widerstand "
-                            "und Temperatur sind insbesondere nicht verifiziert."
+                            "Reverse Engineering: Temperatur, Spannung, Widerstand und "
+                            "Kapazität wurden live mit dem Display abgeglichen. "
+                            "Momentanstrom, Status und weitere Rohwerte bleiben experimentell."
                         ),
                     }
                 )

@@ -43,6 +43,9 @@ class CollectorTests(unittest.TestCase):
             collector._poll_channel(5)
             saved = store.latest()[0]
         self.assertEqual(saved["voltage_mv"], 1540)
+        self.assertEqual(saved["temperature_c_candidate"], 25)
+        self.assertEqual(saved["capacity_mah_candidate"], 25)
+        self.assertEqual(saved["unknown_offset19_u16"], 329)
         self.assertIn("Antwort meldet Kanal 4", saved["error"])
         self.assertIn("Reading", saved["raw_output"])
 
@@ -53,6 +56,18 @@ class CollectorTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 runner.read_metrics(-1)
             run.assert_not_called()
+
+    def test_existing_database_is_migrated_to_calibrated_columns(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "history.sqlite3"
+            store = HistoryStore(path)
+            with store._connect() as db:
+                columns = {row[1] for row in db.execute("PRAGMA table_info(samples)")}
+        self.assertIn("temperature_c_candidate", columns)
+        self.assertIn("capacity_mah_candidate", columns)
+        self.assertIn("unknown_offset19_u16", columns)
+        self.assertIn("code_7_candidate", columns)
+        self.assertIn("code_8_candidate", columns)
 
 
 if __name__ == "__main__":
