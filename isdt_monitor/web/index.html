@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ISDT NXHOST Battery Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Lokaler macOS-Monitor · localhost only</p>
+        <h1>ISDT <span>NXHOST</span></h1>
+        <p class="subtitle">Acht Slots, serielle Messwertabfragen und lokaler Verlauf.</p>
+      </div>
+      <div class="hero-actions">
+        <a id="csv-download" class="button" href="/api/export.csv">CSV herunterladen</a>
+        <span id="mode" class="mode"></span>
+      </div>
+    </header>
+
+    <section class="notice" aria-label="Experimenteller Hinweis">
+      <strong>Experimentelle Dekodierung</strong>
+      <span>Alle Feldzuordnungen sind vorläufig. Strom, Widerstand und Temperatur sind insbesondere nicht verifiziert.</span>
+    </section>
+
+    <section class="statusbar">
+      <span id="live-dot" class="live-dot"></span>
+      <span id="status">Monitor wird verbunden …</span>
+      <span id="cycle" class="muted"></span>
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Live-Übersicht</p>
+          <h2>Slots</h2>
+        </div>
+        <span class="muted">Slot 1 entspricht Kanal 0</span>
+      </div>
+      <div id="slots" class="slot-grid"></div>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="section-heading compact">
+        <div>
+          <p class="eyebrow">Gespeicherter Verlauf</p>
+          <h2>Messkurve</h2>
+        </div>
+        <div class="controls">
+          <label>Slot <select id="history-channel"></select></label>
+          <label>Feld
+            <select id="history-field">
+              <option value="voltage_mv">Spannung (mV) · experimentell</option>
+              <option value="current_ma_unverified">Strom (mA) · nicht verifiziert</option>
+              <option value="resistance_mohm_unverified">Widerstand (mΩ) · nicht verifiziert</option>
+              <option value="temperature_c_unverified">Temperatur (°C) · nicht verifiziert</option>
+              <option value="unknown_a">Unbekannt A</option>
+              <option value="unknown_b">Unbekannt B</option>
+              <option value="unknown_c">Unbekannt C</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart" aria-label="Messwertverlauf"></canvas>
+        <p id="chart-empty" class="chart-empty">Noch keine Verlaufsdaten.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading compact">
+        <div>
+          <p class="eyebrow">Diagnose</p>
+          <h2>Rohdaten &amp; Fehler</h2>
+        </div>
+        <span class="muted">Zeile anklicken, um die vollständige Ausgabe zu sehen.</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Zeit</th><th>Slot / Kanal</th><th>Spannung</th><th>Strom*</th>
+            <th>Widerstand*</th><th>Temp.*</th><th>A / B / C</th><th>Status</th>
+          </tr></thead>
+          <tbody id="recent"></tbody>
+        </table>
+      </div>
+      <p class="footnote">* nicht verifiziert · Alle übrigen Deutungen ebenfalls experimentell.</p>
+      <pre id="raw-output">Eine Messzeile auswählen …</pre>
+    </section>
+
+    <footer>
+      Nur lokale Anzeige auf 127.0.0.1. Der Monitor ruft ausschließlich
+      <code>isdttool -d --output json metrics --channel N</code> auf.
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
