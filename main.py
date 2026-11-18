@@ -9,7 +9,12 @@ from pathlib import Path
 import threading
 import webbrowser
 
-from isdt_monitor.collector import DemoRunner, IsdtToolRunner, SerialCollector
+from isdt_monitor.collector import (
+    DemoRunner,
+    IsdtToolRunner,
+    MacOSNotifier,
+    SerialCollector,
+)
 from isdt_monitor.server import create_server
 from isdt_monitor.storage import HistoryStore
 
@@ -54,6 +59,10 @@ def load_config(path: Path) -> dict:
         10, int(config.get("max_history_per_slot", 5000))
     )
     config["isdttool"] = str(config.get("isdttool", "~/isdt-env/bin/isdttool"))
+    notifications = config.get("notifications_enabled", True)
+    if not isinstance(notifications, bool):
+        raise ValueError("'notifications_enabled' muss true oder false sein.")
+    config["notifications_enabled"] = notifications
     return config
 
 
@@ -90,7 +99,12 @@ def main() -> int:
         else IsdtToolRunner(config["isdttool"], config["command_timeout_seconds"])
     )
     collector = SerialCollector(
-        runner, store, config["channels"], config["poll_interval_seconds"]
+        runner,
+        store,
+        config["channels"],
+        config["poll_interval_seconds"],
+        notifier=None if args.demo else MacOSNotifier(config["notifications_enabled"]),
+        slot_labels=config["slot_labels"],
     )
     server = create_server(args.port, store, collector, config)
     url = f"http://127.0.0.1:{args.port}/"

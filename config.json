@@ -7,6 +7,7 @@
     "7": "NiMH · Analyse"
   },
   "poll_interval_seconds": 5,
+  "notifications_enabled": true,
   "command_timeout_seconds": 10,
   "max_history_per_slot": 5000,
   "isdttool": "~/isdt-env/bin/isdttool"

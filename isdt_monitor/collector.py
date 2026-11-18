@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -12,6 +13,32 @@ from typing import Any
 
 from .parser import FrameError, parse_isdttool_output
 from .storage import HistoryStore
+
+
+class MacOSNotifier:
+    """Deliver a local Notification Center message without third-party tools."""
+
+    def __init__(self, enabled: bool = True):
+        self.enabled = bool(enabled)
+
+    def __call__(self, title: str, message: str) -> None:
+        if not self.enabled:
+            return
+        script = (
+            f"display notification {json.dumps(message, ensure_ascii=False)} "
+            f"with title {json.dumps(title, ensure_ascii=False)} sound name \"Glass\""
+        )
+        try:
+            subprocess.run(
+                ["/usr/bin/osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            # Notifications must never interrupt measurement collection.
+            return
 
 
 class IsdtToolRunner:
@@ -76,11 +103,16 @@ class SerialCollector:
         store: HistoryStore,
         channels: list[int],
         poll_interval_seconds: float,
+        notifier: Any | None = None,
+        slot_labels: dict[str, str] | None = None,
     ):
         self.runner = runner
         self.store = store
         self.channels = channels
         self.poll_interval_seconds = max(1.0, float(poll_interval_seconds))
+        self.notifier = notifier
+        self.slot_labels = slot_labels or {}
+        self._previous_code_7: dict[int, int] = {}
         self.stop_event = threading.Event()
         self.thread: threading.Thread | None = None
         self._lock = threading.Lock()
@@ -145,6 +177,7 @@ class SerialCollector:
             sample["raw_output"] = output
             metrics = parse_isdttool_output(output)
             sample.update(metrics.to_dict())
+            self._handle_charge_completion(channel, metrics)
             if metrics.frame_channel != channel:
                 sample["error"] = (
                     f"Antwort meldet Kanal {metrics.frame_channel}, abgefragt wurde {channel}."
@@ -159,3 +192,31 @@ class SerialCollector:
         except (FrameError, OSError, ValueError) as exc:
             sample["error"] = str(exc)
         self.store.add(sample)
+
+    def _handle_charge_completion(self, channel: int, metrics: Any) -> None:
+        """Notify once when an observed charge changes from active to complete.
+
+        The condition is deliberately narrow and based on the jointly observed
+        N-Series frames: byte 7 changes from active charge code 3 to completed
+        charge code 4, byte 12 changes to 1, and current falls to zero.
+        """
+        previous_code_7 = self._previous_code_7.get(channel)
+        self._previous_code_7[channel] = metrics.code_7_candidate
+        complete = bool(
+            metrics.battery_present_candidate
+            and metrics.code_7_candidate == 4
+            and metrics.state_or_soc_candidate == 1
+            and metrics.current_ma_unverified == 0
+        )
+        if previous_code_7 != 3 or not complete or self.notifier is None:
+            return
+
+        slot = channel + 1
+        manual = self.slot_labels.get(str(channel))
+        name = f"Slot {slot}" + (f" ({manual})" if manual else "")
+        self.notifier(
+            "ISDT NXHOST · Akku geladen",
+            f"{name} ist vollständig geladen – "
+            f"{metrics.voltage_mv / 1000:.2f} V, "
+            f"{metrics.temperature_c_candidate} °C.",
+        )

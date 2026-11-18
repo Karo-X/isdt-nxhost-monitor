@@ -108,6 +108,7 @@ Es gibt keine Lade-, Schreib-, Raw-Command-, Bootloader- oder Firmwarebefehle.
     "7": "NiMH · Analyse"
   },
   "poll_interval_seconds": 5,
+  "notifications_enabled": true,
   "command_timeout_seconds": 10,
   "max_history_per_slot": 5000,
   "isdttool": "~/isdt-env/bin/isdttool"
@@ -119,6 +120,10 @@ Es gibt keine Lade-, Schreib-, Raw-Command-, Bootloader- oder Firmwarebefehle.
 - `slot_labels` sind manuelle Bezeichnungen. `metrics` überträgt keinen Text
   wie „Eneloop“; der Monitor behauptet daher keine automatische Erkennung.
 - Das Polling bleibt seriell: nie mehr als ein `isdttool`-Prozess gleichzeitig.
+- `notifications_enabled` aktiviert eine lokale macOS-Mitteilung, wenn ein
+  beobachteter Ladevorgang von aktiv auf vollständig geladen wechselt. Pro
+  Vorgang erscheint genau eine Mitteilung; beim Programmstart bereits volle
+  Akkus lösen keine nachträgliche Meldung aus.
 - `poll_interval_seconds` ist der Zielabstand zwischen vollständigen Zyklen. Ist
   ein Zyklus langsamer, beginnt der nächste direkt danach; es gibt keine
   parallelen Abfragen.

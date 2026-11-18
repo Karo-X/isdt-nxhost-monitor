@@ -37,6 +37,7 @@ def make_handler(store: HistoryStore, collector: Any, config: dict[str, Any]):
                             "channels": config["channels"],
                             "slot_labels": config.get("slot_labels", {}),
                             "poll_interval_seconds": config["poll_interval_seconds"],
+                            "notifications_enabled": config.get("notifications_enabled", True),
                             "demo": config.get("demo", False),
                         },
                         "latest": store.latest(),

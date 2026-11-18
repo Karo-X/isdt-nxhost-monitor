@@ -13,10 +13,23 @@ FRAME = (
     "f09b0600004ef20613082f1c8200000000000000000000000000000000000000"
 )
 
+COMPLETE_FRAME = (
+    "0224aa2120df04040701191701e1050000a6000000de0054000000d005000000"
+    "f09b06000085aca013082f1c8200000000000000000000000000000000000000"
+)
+
 
 class FakeRunner:
     def read_metrics(self, channel):
         return f"Writing 00\nReading {FRAME}\n[]", 0
+
+
+class SequenceRunner:
+    def __init__(self, frames):
+        self.frames = iter(frames)
+
+    def read_metrics(self, channel):
+        return f"Reading {next(self.frames)}", 0
 
 
 class CollectorTests(unittest.TestCase):
@@ -68,6 +81,42 @@ class CollectorTests(unittest.TestCase):
         self.assertIn("unknown_offset19_u16", columns)
         self.assertIn("code_7_candidate", columns)
         self.assertIn("code_8_candidate", columns)
+
+    def test_notifies_once_when_charging_changes_to_complete(self):
+        notifications = []
+        with tempfile.TemporaryDirectory() as folder:
+            store = HistoryStore(Path(folder) / "history.sqlite3")
+            collector = SerialCollector(
+                SequenceRunner([FRAME, COMPLETE_FRAME, COMPLETE_FRAME]),
+                store,
+                [4],
+                5,
+                notifier=lambda title, message: notifications.append((title, message)),
+                slot_labels={"4": "Eneloop"},
+            )
+            collector._poll_channel(4)
+            collector._poll_channel(4)
+            collector._poll_channel(4)
+
+        self.assertEqual(len(notifications), 1)
+        title, message = notifications[0]
+        self.assertIn("Akku geladen", title)
+        self.assertIn("Slot 5 (Eneloop)", message)
+        self.assertIn("1.50 V", message)
+
+    def test_does_not_notify_for_already_complete_cell_on_startup(self):
+        notifications = []
+        with tempfile.TemporaryDirectory() as folder:
+            store = HistoryStore(Path(folder) / "history.sqlite3")
+            collector = SerialCollector(
+                SequenceRunner([COMPLETE_FRAME]),
+                store,
+                [4],
+                5,
+                notifier=lambda title, message: notifications.append((title, message)),
+            )
+            collector._poll_channel(4)
+        self.assertEqual(notifications, [])
 
 
 if __name__ == "__main__":
