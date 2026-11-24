@@ -105,12 +105,23 @@ function addBatteryHealth(parent, designCapacity, analysisResult) {
 
 function renderCard(channel, sample, manualLabel, designCapacity, analysisResult) {
   const card = node("article", "slot-card");
-  if (channel === selectedChannel) card.classList.add("active");
+  const selected = channel === selectedChannel;
+  if (selected) card.classList.add("active");
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-pressed", String(selected));
   if (sample?.error) card.classList.add("error");
-  card.addEventListener("click", () => {
+  const selectCard = () => {
     selectedChannel = channel;
     channelSelect.value = String(channel);
     load();
+  };
+  card.addEventListener("click", selectCard);
+  card.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectCard();
+    }
   });
 
   const head = node("div", "slot-head");
@@ -118,6 +129,7 @@ function renderCard(channel, sample, manualLabel, designCapacity, analysisResult
   title.append(
     node("div", "slot-title", `Slot ${channel + 1}`),
     node("div", "slot-channel", `${manualLabel ? `${manualLabel} · manuell · ` : ""}isdttool-Kanal ${channel}`),
+    node("div", "selection-label", "● AUSGEWÄHLT"),
   );
   const hasData = Boolean(sample?.has_nonzero_measurement);
   const measurement = hasData ? sample : null;

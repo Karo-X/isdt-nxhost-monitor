@@ -51,15 +51,36 @@ h2 { margin-bottom: 0; font-size: 1.55rem; letter-spacing: -.03em; }
 .filter-toggle { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #10171d; color: #c2ccd1; cursor: pointer; }
 .filter-toggle input { margin: 0; accent-color: var(--mint); }
 .slot-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
-.slot-card { position: relative; overflow: hidden; min-height: 220px; padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(145deg, rgba(21,28,36,.96), rgba(13,18,24,.96)); cursor: pointer; transition: transform .15s, border-color .15s; }
+.slot-card { position: relative; overflow: hidden; min-height: 220px; padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(145deg, rgba(21,28,36,.96), rgba(13,18,24,.96)); cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .slot-card:hover { transform: translateY(-2px); border-color: #476053; }
-.slot-card.active { border-color: var(--mint); box-shadow: inset 0 0 0 1px rgba(87,230,175,.2); }
 .slot-card.charged { border-color: rgba(87,230,175,.78); background: radial-gradient(circle at 82% 12%, rgba(55,190,139,.16), transparent 36%), linear-gradient(145deg, rgba(20,34,35,.98), rgba(13,22,24,.98)); box-shadow: inset 0 0 0 1px rgba(87,230,175,.12), 0 0 22px rgba(40,174,127,.1); }
 .slot-card.charging { border-color: rgba(255,127,87,.48); background: radial-gradient(circle at 84% 12%, rgba(238,97,65,.1), transparent 34%), linear-gradient(145deg, rgba(27,27,31,.98), rgba(18,20,25,.98)); box-shadow: inset 0 0 0 1px rgba(255,137,95,.06); }
 .slot-card.error { border-color: #63363c; }
+.slot-card.active,
+.slot-card.active:hover {
+  z-index: 2;
+  transform: translateY(-4px);
+  border-color: var(--cyan);
+  box-shadow:
+    0 0 0 3px rgba(116,217,247,.24),
+    0 14px 34px rgba(0,0,0,.4),
+    0 0 28px rgba(116,217,247,.16),
+    inset 0 0 0 1px rgba(181,238,255,.3);
+}
+.slot-card.active::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, #b5eeff, var(--cyan) 48%, #3b9db9);
+  box-shadow: 0 0 18px rgba(116,217,247,.72);
+}
+.slot-card:focus-visible { outline: none; }
 .slot-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .slot-title { font-size: 1.1rem; font-weight: 750; }
 .slot-channel { color: var(--muted); font-size: .76rem; }
+.selection-label { display: none; margin-top: 7px; color: var(--cyan); font-size: .62rem; font-weight: 800; letter-spacing: .11em; text-shadow: 0 0 12px rgba(116,217,247,.36); }
+.slot-card.active .selection-label { display: block; }
 .pill { padding: 4px 7px; border-radius: 999px; background: #202a34; color: var(--muted); font-size: .68rem; font-weight: 700; }
 .pill.data { background: #14362c; color: var(--mint); }
 .slot-card.charged .pill.data { background: var(--mint); color: #092218; box-shadow: 0 0 18px rgba(87,230,175,.22); }
