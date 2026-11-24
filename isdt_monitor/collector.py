@@ -198,14 +198,14 @@ class SerialCollector:
 
         The condition is deliberately narrow and based on the jointly observed
         N-Series frames: byte 7 changes from active charge code 3 to completed
-        charge code 4, byte 12 changes to 1, and current falls to zero.
+        charge code 4 and current falls to zero. Byte 12 is not part of this
+        condition because completed cells exposed both raw codes 1 and 5.
         """
         previous_code_7 = self._previous_code_7.get(channel)
         self._previous_code_7[channel] = metrics.code_7_candidate
         complete = bool(
             metrics.battery_present_candidate
             and metrics.code_7_candidate == 4
-            and metrics.state_or_soc_candidate == 1
             and metrics.current_ma_unverified == 0
         )
         if previous_code_7 != 3 or not complete or self.notifier is None:

@@ -163,7 +163,6 @@ class HistoryStore:
             normalized_percent = None
         elif (
             result.get("code_7_candidate") == 4
-            and raw_percent == 1
             and result.get("current_ma_unverified") == 0
         ):
             normalized_percent = 100

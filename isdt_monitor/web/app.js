@@ -51,17 +51,20 @@ function addMetric(parent, label, value) {
   parent.append(metric);
 }
 
-function addChargeProgress(parent, value) {
+function addChargeProgress(parent, value, complete = false) {
   if (value === null || value === undefined) return;
   const percent = Math.max(0, Math.min(100, Number(value)));
-  const progress = node("div", "charge-progress");
+  const progress = node("div", `charge-progress${complete ? " complete" : ""}`);
   progress.setAttribute("role", "progressbar");
   progress.setAttribute("aria-label", "Experimenteller Ladezustand");
   progress.setAttribute("aria-valuemin", "0");
   progress.setAttribute("aria-valuemax", "100");
   progress.setAttribute("aria-valuenow", String(percent));
   const label = node("div", "charge-progress-label");
-  label.append(node("span", "", "Ladezustand · experimentell"), node("strong", "", `${number(percent)} %`));
+  label.append(
+    node("span", "", complete ? "Voll geladen" : "Ladezustand · experimentell"),
+    node("strong", "", `${number(percent)} %`),
+  );
   const track = node("div", "charge-progress-track");
   const fill = node("div", "charge-progress-fill");
   fill.style.width = `${percent}%`;
@@ -88,13 +91,23 @@ function renderCard(channel, sample, manualLabel) {
   );
   const hasData = Boolean(sample?.has_nonzero_measurement);
   const measurement = hasData ? sample : null;
-  head.append(title, node("span", `pill ${hasData ? "data" : ""}`, hasData ? "MESSWERTE" : "NULL / OFFEN"));
+  const complete = Boolean(
+    measurement?.charge_percent_candidate === 100
+    && measurement?.code_7_candidate === 4
+    && measurement?.current_ma_unverified === 0
+  );
+  if (complete) {
+    card.classList.add("charged");
+    card.setAttribute("aria-label", `Slot ${channel + 1}: vollständig geladen`);
+  }
+  const statusText = complete ? "VOLL GELADEN" : (hasData ? "MESSWERTE" : "NULL / OFFEN");
+  head.append(title, node("span", `pill ${hasData ? "data" : ""}`, statusText));
   card.append(head);
 
   const primary = node("div", "primary-reading");
   primary.append(node("strong", "", number(measurement?.voltage_mv)), node("span", "", "mV · exp."));
   card.append(primary);
-  addChargeProgress(card, measurement?.charge_percent_candidate);
+  addChargeProgress(card, measurement?.charge_percent_candidate, complete);
 
   const grid = node("div", "metric-grid");
   addMetric(grid, "Momentanstrom", `${number(measurement?.current_ma_unverified)} mA`);

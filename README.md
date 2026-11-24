@@ -143,7 +143,7 @@ Offsets sind nullbasiert und werden Little Endian gelesen:
 |---:|---:|---|---|
 | 9 | 1 | Akku eingesetzt | Kandidat: 1 bei belegten, 4 bei leeren Slots |
 | 10 | 1 | Temperatur in °C | Display-Abgleich 25/25/26/26 °C |
-| 12 | 1 | Status-/Prozent-Code | 99 bei zwei Slots mit Displaywert 99 %; 1 bei zwei grünen, vollständig geladenen Slots; nicht als reiner Prozentwert interpretieren |
+| 12 | 1 | Status-/Prozent-Code | 99 bei zwei Slots mit Displaywert 99 %; 1 und 5 bei grünen, vollständig geladenen Slots; nicht als reiner Prozentwert interpretieren |
 | 13 | 2 | Spannung in mV | Display-Abgleich an vier Slots |
 | 15 | 2 | Momentanstrom in mA | 408/434 mA passen zu aktiven 0,4-A-Slots; sonst 0 |
 | 17 | 2 | Widerstand in mΩ | Display-Abgleich 166/177/228/176 mΩ |
@@ -175,9 +175,10 @@ Das stützt die Deutung als Kapazität und verstrichene Vorgangszeit zusätzlich
 
 Die Oberfläche zeigt Byte 12 während eines laufenden Vorgangs als
 experimentellen Prozentwert. Der gemeinsam beobachtete Fertigzustand mit
-Byte 7 = 4, Byte 12 = 1 und Strom = 0 wird zu 100 % normalisiert. Alle anderen
-Werte bleiben unverändert; der ursprüngliche Rohcode ist weiterhin in der
-Diagnoseansicht sichtbar.
+Byte 7 = 4 und Strom = 0 wird zu 100 % normalisiert. Byte 12 lieferte dabei je
+nach Slot beziehungsweise Vorgang die Rohcodes 1 oder 5 und ist daher im
+Fertigzustand kein Prozentwert. Der ursprüngliche Rohcode bleibt weiterhin in
+der Diagnoseansicht sichtbar.
 
 ## Daten und CSV
 

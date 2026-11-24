@@ -18,6 +18,11 @@ COMPLETE_FRAME = (
     "f09b06000085aca013082f1c8200000000000000000000000000000000000000"
 )
 
+COMPLETE_FRAME_CODE_5 = (
+    "0224aa2120df070407011a1705dd050000b0000000d50052000000a105000000"
+    "f09c0600005ab7a013082f1c8200000000000000000000000000000000000000"
+)
+
 
 class FakeRunner:
     def read_metrics(self, channel):
@@ -118,6 +123,21 @@ class CollectorTests(unittest.TestCase):
             )
             collector._poll_channel(4)
         self.assertEqual(notifications, [])
+
+    def test_completion_notification_accepts_observed_raw_status_code_5(self):
+        notifications = []
+        with tempfile.TemporaryDirectory() as folder:
+            store = HistoryStore(Path(folder) / "history.sqlite3")
+            collector = SerialCollector(
+                SequenceRunner([FRAME, COMPLETE_FRAME_CODE_5]),
+                store,
+                [4],
+                5,
+                notifier=lambda title, message: notifications.append((title, message)),
+            )
+            collector._poll_channel(4)
+            collector._poll_channel(4)
+        self.assertEqual(len(notifications), 1)
 
 
 if __name__ == "__main__":

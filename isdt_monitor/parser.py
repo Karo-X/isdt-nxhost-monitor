@@ -48,14 +48,14 @@ class ExperimentalMetrics:
         """Normalize the observed progress/status byte for display.
 
         During an active operation byte 12 carries plausible values from
-        0–100. A completed charge instead exposed byte 7 = 4 and byte 12 = 1;
-        only that jointly observed completion state is mapped to 100 percent.
+        0–100. Completed charges exposed byte 7 = 4 and zero current while
+        byte 12 varied (observed values 1 and 5). That jointly observed
+        completion state is therefore mapped to 100 percent.
         """
         if not self.battery_present_candidate:
             return None
         if (
             self.code_7_candidate == 4
-            and self.state_or_soc_candidate == 1
             and self.current_ma_unverified == 0
         ):
             return 100
