@@ -124,6 +124,9 @@ Es gibt keine Lade-, Schreib-, Raw-Command-, Bootloader- oder Firmwarebefehle.
   beobachteter Ladevorgang von aktiv auf vollständig geladen wechselt. Pro
   Vorgang erscheint genau eine Mitteilung; beim Programmstart bereits volle
   Akkus lösen keine nachträgliche Meldung aus.
+- Die Live-Karten markieren den beobachteten aktiven Ladecode 3 zusammen mit
+  positivem Strom als orangefarbenen, animierten Zustand `LÄDT`. Der bestätigte
+  Fertigcode 4 mit 0 mA bleibt als ruhiger grüner Zustand `VOLL GELADEN` sichtbar.
 - `poll_interval_seconds` ist der Zielabstand zwischen vollständigen Zyklen. Ist
   ein Zyklus langsamer, beginnt der nächste direkt danach; es gibt keine
   parallelen Abfragen.

@@ -19,8 +19,11 @@ class StaticFallbackTests(unittest.TestCase):
         self.assertIn('value="charge_percent_candidate"', html)
         self.assertIn('"charge-progress-fill"', javascript)
         self.assertIn('card.classList.add("charged")', javascript)
+        self.assertIn('card.classList.add("charging")', javascript)
         self.assertIn("VOLL GELADEN", javascript)
+        self.assertIn("LÄDT", javascript)
         self.assertIn(".charge-progress.complete", (web / "style.css").read_text(encoding="utf-8"))
+        self.assertIn("@keyframes charge-shimmer", (web / "style.css").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
