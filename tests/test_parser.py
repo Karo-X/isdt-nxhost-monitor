@@ -107,6 +107,14 @@ class ParserTests(unittest.TestCase):
             (11, 9, 1, 23),
         )
 
+    def test_percentage_normalizes_only_observed_completed_charge(self):
+        charging = parse_reading_hex(FRAMES["channel4"])
+        completed = parse_reading_hex(FRAMES["live_channel4"])
+        empty = parse_reading_hex(FRAMES["live_removed_slot5"])
+        self.assertEqual(charging.charge_percent_candidate, 99)
+        self.assertEqual(completed.charge_percent_candidate, 100)
+        self.assertIsNone(empty.charge_percent_candidate)
+
     def test_byte_stuffing_is_removed_before_offsets_are_read(self):
         raw = FRAMES["live_channel6_stuffed"]
         self.assertEqual(len(bytes.fromhex(raw)), 65)

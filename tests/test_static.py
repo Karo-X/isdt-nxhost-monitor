@@ -16,6 +16,8 @@ class StaticFallbackTests(unittest.TestCase):
         self.assertIn("start.command doppelklicken", javascript)
         self.assertIn('id="hide-inactive"', html)
         self.assertIn("nxhost-hide-inactive", javascript)
+        self.assertIn('value="charge_percent_candidate"', html)
+        self.assertIn('"charge-progress-fill"', javascript)
 
 
 if __name__ == "__main__":

@@ -60,6 +60,7 @@
               <option value="resistance_mohm_unverified">Widerstand (mΩ) · Display-Abgleich</option>
               <option value="temperature_c_candidate">Temperatur (°C) · Display-Abgleich</option>
               <option value="capacity_mah_candidate">Kapazität (mAh) · Display-Abgleich</option>
+              <option value="charge_percent_candidate">Ladezustand (%) · experimentell</option>
               <option value="state_or_soc_candidate">Status-/Prozent-Code · experimentell</option>
               <option value="elapsed_seconds_candidate">Ladezeit (s) · Kandidat</option>
               <option value="unknown_offset19_u16">Rohwert Offset 19</option>
@@ -86,12 +87,12 @@
         <table>
           <thead><tr>
             <th>Zeit</th><th>Slot / Kanal</th><th>Spannung</th><th>Strom</th>
-            <th>Widerstand</th><th>Temp.</th><th>mAh / Status / Zeit</th><th>Fehler</th>
+            <th>Widerstand</th><th>Temp.</th><th>mAh / % / Zeit</th><th>Fehler</th>
           </tr></thead>
           <tbody id="recent"></tbody>
         </table>
       </div>
-      <p class="footnote">Reverse Engineering: Byte 12 zeigt bei laufenden Slots den Prozentwert, bei grünen/vollen Slots bislang Code 1. Momentanstrom und diese Statusdeutung bleiben experimentell; Offset 19 und Unbekannt A sind ungeklärt.</p>
+      <p class="footnote">* Experimentell: Byte 12 wird während eines laufenden Vorgangs als Prozentwert angezeigt. Nur der gemeinsam beobachtete Fertigzustand (Code 7 = 4, Byte 12 = 1, Strom = 0) wird zu 100 % normalisiert. Der Rohcode bleibt in der Diagnose sichtbar.</p>
       <pre id="raw-output">Eine Messzeile auswählen …</pre>
     </section>
 

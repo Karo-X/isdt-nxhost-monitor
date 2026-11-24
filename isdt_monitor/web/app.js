@@ -51,6 +51,25 @@ function addMetric(parent, label, value) {
   parent.append(metric);
 }
 
+function addChargeProgress(parent, value) {
+  if (value === null || value === undefined) return;
+  const percent = Math.max(0, Math.min(100, Number(value)));
+  const progress = node("div", "charge-progress");
+  progress.setAttribute("role", "progressbar");
+  progress.setAttribute("aria-label", "Experimenteller Ladezustand");
+  progress.setAttribute("aria-valuemin", "0");
+  progress.setAttribute("aria-valuemax", "100");
+  progress.setAttribute("aria-valuenow", String(percent));
+  const label = node("div", "charge-progress-label");
+  label.append(node("span", "", "Ladezustand · experimentell"), node("strong", "", `${number(percent)} %`));
+  const track = node("div", "charge-progress-track");
+  const fill = node("div", "charge-progress-fill");
+  fill.style.width = `${percent}%`;
+  track.append(fill);
+  progress.append(label, track);
+  parent.append(progress);
+}
+
 function renderCard(channel, sample, manualLabel) {
   const card = node("article", "slot-card");
   if (channel === selectedChannel) card.classList.add("active");
@@ -75,13 +94,14 @@ function renderCard(channel, sample, manualLabel) {
   const primary = node("div", "primary-reading");
   primary.append(node("strong", "", number(measurement?.voltage_mv)), node("span", "", "mV · exp."));
   card.append(primary);
+  addChargeProgress(card, measurement?.charge_percent_candidate);
 
   const grid = node("div", "metric-grid");
   addMetric(grid, "Momentanstrom", `${number(measurement?.current_ma_unverified)} mA`);
   addMetric(grid, "Widerstand", `${number(measurement?.resistance_mohm_unverified)} mΩ`);
   addMetric(grid, "Temperatur", `${number(measurement?.temperature_c_candidate)} °C`);
   addMetric(grid, "Kapazität", `${number(measurement?.capacity_mah_candidate)} mAh`);
-  addMetric(grid, "Status-/Prozent-Code", number(measurement?.state_or_soc_candidate));
+  addMetric(grid, "Ladezustand*", `${number(measurement?.charge_percent_candidate)} %`);
   addMetric(grid, "Zeit-Kandidat", duration(measurement?.elapsed_seconds_candidate));
   card.append(grid);
   if (sample?.error) card.append(node("p", "card-error", sample.error));
@@ -100,7 +120,7 @@ function renderRecent(samples) {
       `${number(sample.current_ma_unverified)} mA`,
       `${number(sample.resistance_mohm_unverified)} mΩ`,
       `${number(sample.temperature_c_candidate)} °C`,
-      `${number(sample.capacity_mah_candidate)} / ${number(sample.state_or_soc_candidate)} / ${duration(sample.elapsed_seconds_candidate)}`,
+      `${number(sample.capacity_mah_candidate)} / ${number(sample.charge_percent_candidate)} % / ${duration(sample.elapsed_seconds_candidate)}`,
     ];
     for (const value of values) row.append(node("td", "", value));
     row.append(node("td", sample.error ? "bad" : "ok", sample.error ? "Fehler" : "OK"));
@@ -113,6 +133,7 @@ function renderRecent(samples) {
         `Profil-/Moduscodes (Bytes 7/8/9/11): ${number(sample.code_7_candidate)} / ${number(sample.code_8_candidate)} / ${number(sample.code_9_candidate)} / ${number(sample.code_11_candidate)}`,
         `Temperatur (Byte 10): ${number(sample.temperature_c_candidate)} °C`,
         `Status-/Prozent-Code (Byte 12): ${number(sample.state_or_soc_candidate)}`,
+        `Abgeleitete Prozentanzeige: ${number(sample.charge_percent_candidate)} %`,
         `Spannung (Offset 13): ${number(sample.voltage_mv)} mV`,
         `Momentanstrom (Offset 15): ${number(sample.current_ma_unverified)} mA`,
         `Widerstand (Offset 17): ${number(sample.resistance_mohm_unverified)} mΩ`,

@@ -43,6 +43,26 @@ class ExperimentalMetrics:
         # Compatibility name used by the current web API.
         return self.battery_present_candidate
 
+    @property
+    def charge_percent_candidate(self) -> int | None:
+        """Normalize the observed progress/status byte for display.
+
+        During an active operation byte 12 carries plausible values from
+        0–100. A completed charge instead exposed byte 7 = 4 and byte 12 = 1;
+        only that jointly observed completion state is mapped to 100 percent.
+        """
+        if not self.battery_present_candidate:
+            return None
+        if (
+            self.code_7_candidate == 4
+            and self.state_or_soc_candidate == 1
+            and self.current_ma_unverified == 0
+        ):
+            return 100
+        if 0 <= self.state_or_soc_candidate <= 100:
+            return self.state_or_soc_candidate
+        return None
+
     def to_dict(self) -> dict[str, object]:
         result = asdict(self)
         # Compatibility aliases keep existing databases and CSV consumers usable.
@@ -52,6 +72,7 @@ class ExperimentalMetrics:
         result["unknown_c"] = self.elapsed_seconds_candidate
         result["battery_present_candidate"] = self.battery_present_candidate
         result["has_nonzero_measurement"] = self.has_nonzero_measurement
+        result["charge_percent_candidate"] = self.charge_percent_candidate
         return result
 
 

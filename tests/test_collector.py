@@ -57,6 +57,7 @@ class CollectorTests(unittest.TestCase):
             saved = store.latest()[0]
         self.assertEqual(saved["voltage_mv"], 1540)
         self.assertEqual(saved["temperature_c_candidate"], 25)
+        self.assertEqual(saved["charge_percent_candidate"], 99)
         self.assertEqual(saved["capacity_mah_candidate"], 25)
         self.assertEqual(saved["unknown_offset19_u16"], 329)
         self.assertIn("Antwort meldet Kanal 4", saved["error"])

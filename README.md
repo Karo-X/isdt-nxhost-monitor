@@ -173,6 +173,12 @@ der Diagnose an. Die Namen in `slot_labels` sind ausdrücklich manuell.
 Beim Neustart der Analyse fielen die Offset-23/27-Werte auf `1 mAh` und `27 s`.
 Das stützt die Deutung als Kapazität und verstrichene Vorgangszeit zusätzlich.
 
+Die Oberfläche zeigt Byte 12 während eines laufenden Vorgangs als
+experimentellen Prozentwert. Der gemeinsam beobachtete Fertigzustand mit
+Byte 7 = 4, Byte 12 = 1 und Strom = 0 wird zu 100 % normalisiert. Alle anderen
+Werte bleiben unverändert; der ursprüngliche Rohcode ist weiterhin in der
+Diagnoseansicht sichtbar.
+
 ## Daten und CSV
 
 - Live-Verlauf: `data/monitor.sqlite3`

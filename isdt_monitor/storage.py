@@ -158,6 +158,20 @@ class HistoryStore:
             present = code_9 == 1
         result["battery_present_candidate"] = present
         result["has_nonzero_measurement"] = present
+        raw_percent = result.get("state_or_soc_candidate")
+        if not present or raw_percent is None:
+            normalized_percent = None
+        elif (
+            result.get("code_7_candidate") == 4
+            and raw_percent == 1
+            and result.get("current_ma_unverified") == 0
+        ):
+            normalized_percent = 100
+        elif 0 <= raw_percent <= 100:
+            normalized_percent = raw_percent
+        else:
+            normalized_percent = None
+        result["charge_percent_candidate"] = normalized_percent
         return result
 
     def latest(self) -> list[dict[str, Any]]:
