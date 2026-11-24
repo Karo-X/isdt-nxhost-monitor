@@ -24,6 +24,12 @@ class StaticFallbackTests(unittest.TestCase):
         self.assertIn("LÄDT", javascript)
         self.assertIn(".charge-progress.complete", (web / "style.css").read_text(encoding="utf-8"))
         self.assertIn("@keyframes charge-shimmer", (web / "style.css").read_text(encoding="utf-8"))
+        self.assertIn("Battery Health", javascript)
+        self.assertIn("Analyse ausstehend", javascript)
+        self.assertIn("measured_capacity_mah", javascript)
+        self.assertIn('id="chart-description"', html)
+        self.assertIn("elapsed_seconds_candidate", javascript)
+        self.assertIn("bei einem neuen Vorgang beginnt dieser Zähler wieder bei 0", javascript)
 
 
 if __name__ == "__main__":

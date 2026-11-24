@@ -23,6 +23,11 @@ COMPLETE_FRAME_CODE_5 = (
     "f09c0600005ab7a013082f1c8200000000000000000000000000000000000000"
 )
 
+ANALYSIS_DONE_FRAME = (
+    "0224aa2120df040c0701191701e1050000a6000000de0040060000d005000000"
+    "f09b06000085aca013082f1c8200000000000000000000000000000000000000"
+)
+
 
 class FakeRunner:
     def read_metrics(self, channel):
@@ -138,6 +143,16 @@ class CollectorTests(unittest.TestCase):
             collector._poll_channel(4)
             collector._poll_channel(4)
         self.assertEqual(len(notifications), 1)
+
+    def test_completed_analysis_capacity_is_persisted_separately(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = HistoryStore(Path(folder) / "history.sqlite3")
+            collector = SerialCollector(SequenceRunner([ANALYSIS_DONE_FRAME]), store, [4], 5)
+            collector._poll_channel(4)
+            results = store.latest_analysis_results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["channel"], 4)
+        self.assertEqual(results[0]["measured_capacity_mah"], 1600)
 
 
 if __name__ == "__main__":

@@ -127,6 +127,12 @@ Es gibt keine Lade-, Schreib-, Raw-Command-, Bootloader- oder Firmwarebefehle.
 - Die Live-Karten markieren den beobachteten aktiven Ladecode 3 zusammen mit
   positivem Strom als orangefarbenen, animierten Zustand `LÄDT`. Der bestätigte
   Fertigcode 4 mit 0 mA bleibt als ruhiger grüner Zustand `VOLL GELADEN` sichtbar.
+- `design_capacity_mah` enthält die Nennkapazität pro Kanal. Für die
+  vorhandenen Eneloops sind 2000 mAh eingetragen. `Battery Health` wird nur aus
+  einem dauerhaft gespeicherten, abgeschlossenen Analyseergebnis (Mode-Code 12)
+  berechnet: Analysekapazität geteilt durch Nennkapazität. Normale Lade-mAh
+  werden dafür ausdrücklich nicht verwendet. Ohne Analyseergebnis zeigt die
+  Oberfläche `Analyse ausstehend` statt eines geschätzten Gesundheitswerts.
 - `poll_interval_seconds` ist der Zielabstand zwischen vollständigen Zyklen. Ist
   ein Zyklus langsamer, beginnt der nächste direkt danach; es gibt keine
   parallelen Abfragen.
@@ -168,10 +174,11 @@ als experimentellen Belegungsindikator und nicht mehr „Spannung größer null�
 Die Displaybezeichnung „Eneloop“ ist im `metrics`-Frame nicht als Text enthalten.
 Bei der gemeinsamen Umstellung von Slot 8 von Eneloop/Laden auf NiMH/Analyse
 änderten sich die Rohcodes Byte 7/8 von `4/7` auf `11/9`; Byte 9/11 blieben
-`1/23`. Weil Akkutyp und Vorgang gleichzeitig geändert wurden, lässt sich noch
-nicht seriös zuordnen, welcher der beiden Codes für NiMH beziehungsweise Analyse
-steht. Der Monitor zeigt diese vier Werte deshalb nur als Profil-/Moduscodes in
-der Diagnose an. Die Namen in `slot_labels` sind ausdrücklich manuell.
+`1/23`. Der Quellcode von `isdttool` ordnet Byte 7 als Modus (`3` Laden, `4`
+geladen, `5` Entladen, `6` entladen, `11` Analyse, `12` Analyse abgeschlossen)
+und Byte 8 als Chemie (`7` Eneloop, `9` NiMH) zu. Der Monitor nutzt diese
+Zuordnung für Lade-/Fertigstatus und speichert Mode 12 als Analyseergebnis.
+Textnamen in `slot_labels` bleiben dennoch ausdrücklich manuell.
 
 Beim Neustart der Analyse fielen die Offset-23/27-Werte auf `1 mAh` und `27 s`.
 Das stützt die Deutung als Kapazität und verstrichene Vorgangszeit zusätzlich.
@@ -190,7 +197,40 @@ der Diagnoseansicht sichtbar.
 - CSV: Schaltfläche **CSV herunterladen** im Dashboard
 - Rohframe, vollständige `isdttool`-Ausgabe und Fehler werden pro Abfrage
   gespeichert und in der Diagnoseansicht sichtbar gemacht.
+- Die Messkurve zeigt nur den aktuellen Vorgang. Wenn die Vorgangszeit beim
+  Start einer neuen Aufgabe auf 0 zurückspringt, wird dort eine neue Kurve
+  begonnen; getrennte mAh-Zähler werden nicht mehr durch eine senkrechte Linie
+  verbunden. Eine Kurzbeschreibung unter der Feldauswahl erklärt den Wert.
 
 Für einen neuen Verlauf den Monitor beenden und die gewünschte SQLite-Datei im
 Ordner `data` verschieben oder löschen. Das Dashboard legt sie beim nächsten
 Start neu an.
+
+## Herkunft, Danksagung und Abgrenzung
+
+Dieses Dashboard baut auf der Kommandozeilenanwendung
+[`maxried/isdttool`](https://github.com/maxried/isdttool) von Max Ried auf. Das
+Projekt dokumentiert und implementiert das per Beobachtung rekonstruierte
+USB-Debugprotokoll verschiedener ISDT-Ladegeräte. Der Monitor ruft davon
+ausschließlich den lesenden Befehl
+`isdttool -d --output json metrics --channel N` auf. Das Originalprojekt ist
+inzwischen archiviert und verweist selbst auf den weiterentwickelten Fork
+[`pallemannen/isdttool`](https://github.com/pallemannen/isdttool).
+
+Die N-Series-spezifischen Offsets, Byte-Stuffing-Beobachtungen und
+Oberflächenregeln dieses Projekts wurden zusätzlich anhand der im README
+dokumentierten NXHOST-Rohframes und gleichzeitiger Displayablesungen ermittelt.
+Als Gerätereferenz dient außerdem die offizielle
+[`ISDT N-Series-Anleitung`](https://www.isdt.co/down/pdf/NSeries-de.pdf).
+
+ISDT, Eneloop und coconutBattery sind Marken ihrer jeweiligen Inhaber. Dieses
+Projekt ist weder mit ISDT noch mit den genannten Herstellern verbunden oder
+von ihnen unterstützt. Die Coconut-artige Darstellung ist nur eine gestalterische
+Anlehnung; es wurde kein Quellcode von coconutBattery verwendet.
+
+## Lizenz
+
+Dieses Projekt wird unter der GNU General Public License v3.0 (`GPL-3.0-only`)
+bereitgestellt; der vollständige Text steht in [`LICENSE`](LICENSE). Die Wahl
+passt zur Lizenz des verwendeten `isdttool`-Projekts. Es gibt keinerlei Garantie;
+Akkus und Ladegeräte dürfen nicht unbeaufsichtigt betrieben werden.

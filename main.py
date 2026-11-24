@@ -49,6 +49,24 @@ def load_config(path: Path) -> dict:
             raise ValueError("Slot-Bezeichnungen müssen zu konfigurierten Kanälen gehören und 1–80 Zeichen lang sein.")
         normalized_labels[str(channel)] = value.strip()
     config["slot_labels"] = normalized_labels
+    capacities = config.get("design_capacity_mah", {})
+    if not isinstance(capacities, dict):
+        raise ValueError("'design_capacity_mah' muss ein Objekt mit Kanalnummern und mAh-Werten sein.")
+    normalized_capacities = {}
+    for key, value in capacities.items():
+        try:
+            channel = int(key)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Ungültige Kanalnummer in 'design_capacity_mah'.") from exc
+        if (
+            channel not in channels
+            or isinstance(value, bool)
+            or not isinstance(value, int)
+            or not 100 <= value <= 100000
+        ):
+            raise ValueError("Nennkapazitäten müssen zu konfigurierten Kanälen gehören und zwischen 100 und 100000 mAh liegen.")
+        normalized_capacities[str(channel)] = value
+    config["design_capacity_mah"] = normalized_capacities
     config["poll_interval_seconds"] = max(
         1.0, float(config.get("poll_interval_seconds", 5.0))
     )

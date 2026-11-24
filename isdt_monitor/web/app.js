@@ -9,6 +9,7 @@ const hideInactiveToggle = document.querySelector("#hide-inactive");
 const slotCountNode = document.querySelector("#slot-count");
 const canvas = document.querySelector("#chart");
 const chartEmpty = document.querySelector("#chart-empty");
+const chartDescription = document.querySelector("#chart-description");
 let selectedChannel = null;
 let latestHistory = [];
 const fileMode = window.location.protocol === "file:";
@@ -74,7 +75,35 @@ function addChargeProgress(parent, value, complete = false, charging = false) {
   parent.append(progress);
 }
 
-function renderCard(channel, sample, manualLabel) {
+function addBatteryHealth(parent, designCapacity, analysisResult) {
+  if (!designCapacity) return;
+  const panel = node("div", `health-summary${analysisResult ? " measured" : " pending"}`);
+  const head = node("div", "health-head");
+  head.append(node("span", "", "Battery Health · experimentell"));
+  if (!analysisResult) {
+    head.append(node("strong", "", "Analyse ausstehend"));
+    panel.append(head, node("div", "health-meta", `Nennkapazität ${number(designCapacity)} mAh · kein Analyseergebnis`));
+    parent.append(panel);
+    return;
+  }
+  const measured = Number(analysisResult.measured_capacity_mah);
+  const health = measured / Number(designCapacity) * 100;
+  const healthClass = health >= 80 ? "good" : (health >= 60 ? "warn" : "poor");
+  panel.classList.add(healthClass);
+  head.append(node("strong", "", `${number(health, 1)} %`));
+  const track = node("div", "health-track");
+  const fill = node("div", "health-fill");
+  fill.style.width = `${Math.max(0, Math.min(100, health))}%`;
+  track.append(fill);
+  panel.append(
+    head,
+    track,
+    node("div", "health-meta", `Analysekapazität ${number(measured)} mAh · Nennwert ${number(designCapacity)} mAh`),
+  );
+  parent.append(panel);
+}
+
+function renderCard(channel, sample, manualLabel, designCapacity, analysisResult) {
   const card = node("article", "slot-card");
   if (channel === selectedChannel) card.classList.add("active");
   if (sample?.error) card.classList.add("error");
@@ -117,6 +146,7 @@ function renderCard(channel, sample, manualLabel) {
   primary.append(node("strong", "", number(measurement?.voltage_mv)), node("span", "", "mV · exp."));
   card.append(primary);
   addChargeProgress(card, measurement?.charge_percent_candidate, complete, charging);
+  addBatteryHealth(card, designCapacity, analysisResult);
 
   const grid = node("div", "metric-grid");
   addMetric(grid, "Momentanstrom", `${number(measurement?.current_ma_unverified)} mA`);
@@ -196,7 +226,29 @@ async function loadHistory() {
 
 function drawChart() {
   const field = fieldSelect.value;
-  const points = latestHistory.filter(sample => sample[field] !== null && sample[field] !== undefined);
+  let sessionStart = 0;
+  for (let index = 1; index < latestHistory.length; index += 1) {
+    const previous = Number(latestHistory[index - 1].elapsed_seconds_candidate);
+    const current = Number(latestHistory[index].elapsed_seconds_candidate);
+    if (Number.isFinite(previous) && Number.isFinite(current) && current + 3 < previous) {
+      sessionStart = index;
+    }
+  }
+  const session = latestHistory.slice(sessionStart);
+  const points = session.filter(sample => sample[field] !== null && sample[field] !== undefined);
+  const fieldHelp = {
+    voltage_mv: "Aktueller Vorgang · Klemmenspannung des Akkus im zeitlichen Verlauf.",
+    current_ma_unverified: "Aktueller Vorgang · vom Ladegerät gemeldeter Momentanstrom.",
+    resistance_mohm_unverified: "Aktueller Vorgang · vom Ladegerät geschätzter Innenwiderstand.",
+    temperature_c_candidate: "Aktueller Vorgang · vom Ladegerät gemeldete Akkutemperatur.",
+    capacity_mah_candidate: "Aktueller Vorgang · seit dessen Start gezählte mAh; bei einem neuen Vorgang beginnt dieser Zähler wieder bei 0.",
+    charge_percent_candidate: "Aktueller Vorgang · experimenteller Ladefortschritt des Ladegeräts.",
+    state_or_soc_candidate: "Aktueller Vorgang · unveränderter Status-/Prozent-Rohcode.",
+    elapsed_seconds_candidate: "Aktueller Vorgang · verstrichene Zeit seit dessen Start.",
+    unknown_offset19_u16: "Aktueller Vorgang · noch nicht zugeordneter Rohwert.",
+    unknown_a: "Aktueller Vorgang · noch nicht zugeordneter Rohwert.",
+  };
+  chartDescription.textContent = fieldHelp[field] || "Aktueller Vorgang";
   chartEmpty.hidden = points.length > 1;
   const rect = canvas.getBoundingClientRect();
   const scale = window.devicePixelRatio || 1;
@@ -213,9 +265,18 @@ function drawChart() {
   const values = points.map(point => Number(point[field]));
   let min = Math.min(...values);
   let max = Math.max(...values);
-  if (min === max) { min -= 1; max += 1; }
-  const extra = (max - min) * 0.12;
-  min -= extra; max += extra;
+  const zeroBased = new Set(["capacity_mah_candidate", "elapsed_seconds_candidate"]);
+  if (field === "charge_percent_candidate") {
+    min = 0;
+    max = 100;
+  } else if (zeroBased.has(field)) {
+    min = 0;
+    max = Math.max(1, max * 1.08);
+  } else {
+    if (min === max) { min -= 1; max += 1; }
+    const extra = (max - min) * 0.12;
+    min -= extra; max += extra;
+  }
   const x = index => pad.left + index * (width - pad.left - pad.right) / (points.length - 1);
   const y = value => pad.top + (max - value) * (height - pad.top - pad.bottom) / (max - min);
 
@@ -257,9 +318,16 @@ async function load() {
     document.querySelector("#status").textContent = polling === null ? "Serielles Polling aktiv" : `Kanal ${polling} wird gelesen …`;
     document.querySelector("#cycle").textContent = `Zyklen: ${state.collector.cycles} · Intervall: ${number(state.config.poll_interval_seconds, 0)} s`;
     const latest = new Map(state.latest.map(item => [item.channel, item]));
+    const analysisResults = new Map(state.analysis_results.map(item => [item.channel, item]));
     const activeCount = state.config.channels.filter(channel => latest.get(channel)?.has_nonzero_measurement).length;
     const visibleChannels = state.config.channels.filter(channel => !hideInactive || latest.get(channel)?.has_nonzero_measurement);
-    const cards = visibleChannels.map(channel => renderCard(channel, latest.get(channel), state.config.slot_labels?.[String(channel)]));
+    const cards = visibleChannels.map(channel => renderCard(
+      channel,
+      latest.get(channel),
+      state.config.slot_labels?.[String(channel)],
+      state.config.design_capacity_mah?.[String(channel)],
+      analysisResults.get(channel),
+    ));
     slotsNode.replaceChildren(...cards);
     if (!cards.length) slotsNode.append(node("p", "muted", "Noch keine aktiven Slots erkannt."));
     slotCountNode.textContent = `${activeCount} aktiv · ${state.config.channels.length} konfiguriert · Slot 1 = Kanal 0`;

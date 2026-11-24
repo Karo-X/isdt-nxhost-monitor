@@ -36,11 +36,13 @@ def make_handler(store: HistoryStore, collector: Any, config: dict[str, Any]):
                         "config": {
                             "channels": config["channels"],
                             "slot_labels": config.get("slot_labels", {}),
+                            "design_capacity_mah": config.get("design_capacity_mah", {}),
                             "poll_interval_seconds": config["poll_interval_seconds"],
                             "notifications_enabled": config.get("notifications_enabled", True),
                             "demo": config.get("demo", False),
                         },
                         "latest": store.latest(),
+                        "analysis_results": store.latest_analysis_results(),
                         "recent": store.recent(80),
                         "experimental_notice": (
                             "Reverse Engineering: Temperatur, Spannung, Widerstand und "

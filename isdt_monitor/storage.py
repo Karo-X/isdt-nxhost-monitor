@@ -84,6 +84,18 @@ class HistoryStore:
                 "CREATE INDEX IF NOT EXISTS idx_samples_channel_id "
                 "ON samples(channel, id DESC)"
             )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS analysis_results (
+                    channel INTEGER PRIMARY KEY,
+                    observed_at TEXT NOT NULL,
+                    measured_capacity_mah INTEGER NOT NULL,
+                    resistance_mohm INTEGER,
+                    temperature_c INTEGER,
+                    raw_frame TEXT
+                )
+                """
+            )
             existing = {row[1] for row in db.execute("PRAGMA table_info(samples)")}
             for name in (
                 "temperature_c_candidate",
@@ -98,6 +110,26 @@ class HistoryStore:
             ):
                 if name not in existing:
                     db.execute(f"ALTER TABLE samples ADD COLUMN {name} INTEGER")
+            db.execute(
+                """
+                INSERT OR IGNORE INTO analysis_results (
+                    channel, observed_at, measured_capacity_mah,
+                    resistance_mohm, temperature_c, raw_frame
+                )
+                SELECT s.channel, s.observed_at, s.capacity_mah_candidate,
+                       s.resistance_mohm_unverified, s.temperature_c_candidate,
+                       s.raw_frame
+                FROM samples s
+                JOIN (
+                    SELECT channel, MAX(id) AS id
+                    FROM samples
+                    WHERE code_7_candidate = 12
+                      AND code_9_candidate = 1
+                      AND capacity_mah_candidate > 0
+                    GROUP BY channel
+                ) latest ON latest.id = s.id
+                """
+            )
 
     def add(self, sample: dict[str, Any]) -> None:
         placeholders = ",".join("?" for _ in COLUMNS)
@@ -106,6 +138,33 @@ class HistoryStore:
                 f"INSERT INTO samples ({','.join(COLUMNS)}) VALUES ({placeholders})",
                 [sample.get(column) for column in COLUMNS],
             )
+            if (
+                sample.get("code_7_candidate") == 12
+                and sample.get("code_9_candidate") == 1
+                and (sample.get("capacity_mah_candidate") or 0) > 0
+            ):
+                db.execute(
+                    """
+                    INSERT INTO analysis_results (
+                        channel, observed_at, measured_capacity_mah,
+                        resistance_mohm, temperature_c, raw_frame
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(channel) DO UPDATE SET
+                        observed_at = excluded.observed_at,
+                        measured_capacity_mah = excluded.measured_capacity_mah,
+                        resistance_mohm = excluded.resistance_mohm,
+                        temperature_c = excluded.temperature_c,
+                        raw_frame = excluded.raw_frame
+                    """,
+                    (
+                        sample["channel"],
+                        sample["observed_at"],
+                        sample["capacity_mah_candidate"],
+                        sample.get("resistance_mohm_unverified"),
+                        sample.get("temperature_c_candidate"),
+                        sample.get("raw_frame"),
+                    ),
+                )
             db.execute(
                 """
                 DELETE FROM samples
@@ -191,6 +250,14 @@ class HistoryStore:
                 "SELECT * FROM samples ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
         return [self._row(row) for row in rows]
+
+    def latest_analysis_results(self) -> list[dict[str, Any]]:
+        """Return the persistent latest completed analysis for every channel."""
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT * FROM analysis_results ORDER BY channel"
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def history(self, channel: int, limit: int = 500) -> list[dict[str, Any]]:
         limit = max(1, min(int(limit), self.max_history_per_slot))
