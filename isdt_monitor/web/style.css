@@ -80,8 +80,8 @@ h2 { margin-bottom: 0; font-size: 1.55rem; letter-spacing: -.03em; }
 .charge-progress.charging .charge-progress-label strong { color: #ffb08e; }
 .charge-progress.charging .charge-progress-track { background: #33251f; }
 .charge-progress.charging .charge-progress-fill { position: relative; overflow: hidden; background: linear-gradient(90deg, #ee6346, #ff9b58); box-shadow: 0 0 13px rgba(255,105,72,.28); }
-.charge-progress.charging .charge-progress-fill::after { content: ""; position: absolute; inset: 0; width: 55%; transform: translateX(-130%); background: linear-gradient(100deg, transparent, rgba(255,255,255,.78), transparent); animation: charge-shimmer 1.55s linear infinite; }
-@keyframes charge-shimmer { to { transform: translateX(250%); } }
+.charge-progress.charging .charge-progress-fill::after { content: ""; position: absolute; inset: 0; width: 62%; transform: translateX(-140%); background: linear-gradient(100deg, transparent 12%, rgba(255,181,112,.08) 32%, rgba(255,196,127,.38) 50%, rgba(255,151,86,.1) 68%, transparent 88%); animation: charge-shimmer 3.8s ease-in-out infinite; }
+@keyframes charge-shimmer { 0%, 12% { transform: translateX(-140%); } 88%, 100% { transform: translateX(235%); } }
 @media (prefers-reduced-motion: reduce) { .charge-progress.charging .charge-progress-fill::after { display: none; animation: none; } }
 .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
 .metric small { display: block; color: var(--muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; }
